@@ -33,7 +33,7 @@ services:
       service: microservice-db-config
 
   configserver:
-    image: "hiendat04/configserver:v3"
+    image: "hiendat04/configserver:v4"
     container_name: "configserver-ms"
     ports:
       - "8071:8071"
@@ -47,14 +47,29 @@ services:
       file: "common-config.yml"
       service: microservice-base-config
 
+  eurekaserver:
+    image: "hiendat04/eurekaserver:v4"
+    container_name: "eurekaserver-ms"
+    ports:
+      - "8070:8070"
+    healthcheck:
+      test: "curl --fail --silent http://localhost:8070/actuator/health/readiness || grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    extends:
+      file: "common-config.yml"
+      service: microservice-configserver-config
+    environment:
+      SPRING_APPLICATION_NAME: "eurekaserver"
+
   accounts:
-    image: "hiendat04/accounts:v3"
+    image: "hiendat04/accounts:v4"
     container_name: "accounts-ms"
     ports:
       - "8080:8080"
     depends_on:
-      configserver:
-        condition: service_healthy # Wait for the configserver to be healthy before starting accounts
       accountsdb:
         condition: service_healthy # Wait for accountsdb to be healthy before starting accounts
     environment:
@@ -62,16 +77,14 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://accountsdb:3306/accountsdb
     extends:
       file: "common-config.yml"
-      service: microservice-configserver-config
+      service: microservice-eureka-config
 
   loans:
-    image: "hiendat04/loans:v3"
+    image: "hiendat04/loans:v4"
     container_name: "loans-ms"
     ports:
       - "8090:8090"
     depends_on:
-      configserver:
-        condition: service_healthy # Wait for the configserver to be healthy before starting loans
       loansdb:
         condition: service_healthy # Wait for loansdb to be healthy before starting loans
     environment:
@@ -79,16 +92,14 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://loansdb:3306/loansdb
     extends:
       file: "common-config.yml"
-      service: microservice-configserver-config
+      service: microservice-eureka-config
 
   cards:
-    image: "hiendat04/cards:v3"
+    image: "hiendat04/cards:v4"
     container_name: "cards-ms"
     ports:
       - "9000:9000"
     depends_on:
-      configserver:
-        condition: service_healthy # Wait for the configserver to be healthy before starting cards
       cardsdb:
         condition: service_healthy # Wait for cardsdb to be healthy before starting cards
     environment:
@@ -96,7 +107,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:mysql://cardsdb:3306/cardsdb
     extends:
       file: "common-config.yml"
-      service: microservice-configserver-config
+      service: microservice-eureka-config
 
 networks:
   ms-banking-system:

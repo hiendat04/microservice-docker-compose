@@ -33,7 +33,7 @@ services:
       service: microservice-db-config
 
   configserver:
-    image: "hiendat04/configserver:v4"
+    image: "hiendat04/configserver:v5"
     container_name: "configserver-ms"
     ports:
       - "8071:8071"
@@ -48,7 +48,7 @@ services:
       service: microservice-base-config
 
   eurekaserver:
-    image: "hiendat04/eurekaserver:v4"
+    image: "hiendat04/eurekaserver:v5"
     container_name: "eurekaserver-ms"
     ports:
       - "8070:8070"
@@ -65,10 +65,16 @@ services:
       SPRING_APPLICATION_NAME: "eurekaserver"
 
   accounts:
-    image: "hiendat04/accounts:v4"
+    image: "hiendat04/accounts:v5"
     container_name: "accounts-ms"
     ports:
       - "8080:8080"
+    healthcheck:
+      test: "curl --fail --silent http://localhost:8080/actuator/health/readiness || grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     depends_on:
       accountsdb:
         condition: service_healthy # Wait for accountsdb to be healthy before starting accounts
@@ -80,10 +86,16 @@ services:
       service: microservice-eureka-config
 
   loans:
-    image: "hiendat04/loans:v4"
+    image: "hiendat04/loans:v5"
     container_name: "loans-ms"
     ports:
       - "8090:8090"
+    healthcheck:
+      test: "curl --fail --silent http://localhost:8090/actuator/health/readiness || grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     depends_on:
       loansdb:
         condition: service_healthy # Wait for loansdb to be healthy before starting loans
@@ -95,16 +107,40 @@ services:
       service: microservice-eureka-config
 
   cards:
-    image: "hiendat04/cards:v4"
+    image: "hiendat04/cards:v5"
     container_name: "cards-ms"
     ports:
       - "9000:9000"
+    healthcheck:
+      test: "curl --fail --silent http://localhost:9000/actuator/health/readiness || grep UP || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
     depends_on:
       cardsdb:
         condition: service_healthy # Wait for cardsdb to be healthy before starting cards
     environment:
       SPRING_APPLICATION_NAME: "cards"
       SPRING_DATASOURCE_URL: jdbc:mysql://cardsdb:3306/cardsdb
+    extends:
+      file: "common-config.yml"
+      service: microservice-eureka-config
+
+  gatewayserver:
+    image: "hiendat04/gatewayserver:v5"
+    container_name: "gatewayserver-ms"
+    ports:
+      - "8072:8072"
+    depends_on:
+      accounts:
+        condition: service_healthy
+      loans:
+        condition: service_healthy
+      cards:
+        condition: service_healthy
+    environment:
+      SPRING_APPLICATION_NAME: "gatewayserver"
     extends:
       file: "common-config.yml"
       service: microservice-eureka-config

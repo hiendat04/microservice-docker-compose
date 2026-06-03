@@ -1,4 +1,19 @@
 services:
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    hostname: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    healthcheck:
+      test: rabbitmq-diagnostics check_port_connectivity
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    extends:
+      file: "common-config.yml"
+      service: network-deploy-service
   keycloak:
     image: quay.io/keycloak/keycloak:latest
     container_name: keycloak
@@ -6,7 +21,7 @@ services:
       - KEYCLOAK_ADMIN=admin
       - KEYCLOAK_ADMIN_PASSWORD=admin
     ports:
-      - "7080:8080"
+      - "127.0.0.1:7080:8080"
     command: start-dev
     extends:
       file: "common-config.yml"
@@ -270,7 +285,7 @@ services:
       service: microservice-db-config
 
   configserver:
-    image: "hiendat04/configserver:v10"
+    image: "hiendat04/configserver:v11"
     container_name: "configserver-ms"
     ports:
       - "8071:8071"
@@ -287,7 +302,7 @@ services:
       OTEL_SERVICE_NAME: "configserver"
 
   eurekaserver:
-    image: "hiendat04/eurekaserver:v10"
+    image: "hiendat04/eurekaserver:v11"
     container_name: "eurekaserver-ms"
     ports:
       - "8070:8070"
@@ -305,7 +320,7 @@ services:
       OTEL_SERVICE_NAME: "eurekaserver"
 
   accounts:
-    image: "hiendat04/accounts:v10"
+    image: "hiendat04/accounts:v11"
     container_name: "accounts-ms"
     healthcheck:
       test: "curl --fail --silent http://localhost:8080/actuator/health/readiness || grep UP || exit 1"
@@ -316,16 +331,19 @@ services:
     depends_on:
       accountsdb:
         condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
     environment:
       SPRING_APPLICATION_NAME: "accounts"
       SPRING_DATASOURCE_URL: jdbc:mysql://accountsdb:3306/accountsdb
       OTEL_SERVICE_NAME: "accounts"
+      SPRING_RABBITMQ_HOST: rabbitmq
     extends:
       file: "common-config.yml"
       service: microservice-eureka-config
 
   loans:
-    image: "hiendat04/loans:v10"
+    image: "hiendat04/loans:v11"
     container_name: "loans-ms"
     healthcheck:
       test: "curl --fail --silent http://localhost:8090/actuator/health/readiness || grep UP || exit 1"
@@ -345,7 +363,7 @@ services:
       service: microservice-eureka-config
 
   cards:
-    image: "hiendat04/cards:v10"
+    image: "hiendat04/cards:v11"
     container_name: "cards-ms"
     healthcheck:
       test: "curl --fail --silent http://localhost:9000/actuator/health/readiness || grep UP || exit 1"
@@ -365,7 +383,7 @@ services:
       service: microservice-eureka-config
 
   gatewayserver:
-    image: "hiendat04/gatewayserver:v10"
+    image: "hiendat04/gatewayserver:v11"
     container_name: "gatewayserver-ms"
     ports:
       - "8072:8072"
@@ -383,6 +401,18 @@ services:
     extends:
       file: "common-config.yml"
       service: microservice-eureka-config
+
+  message:
+    image: "hiendat04/message:v11"
+    container_name: "message-ms"
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      SPRING_RABBITMQ_HOST: rabbitmq
+    extends:
+      file: "common-config.yml"
+      service: network-deploy-service
 
 networks:
   ms-banking-system:
